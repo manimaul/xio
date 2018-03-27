@@ -4,19 +4,17 @@ import com.google.common.base.Preconditions;
 import com.xjeffrose.xio.SSL.SslContextFactory;
 import com.xjeffrose.xio.client.loadbalancer.Distributor;
 import com.xjeffrose.xio.client.loadbalancer.Protocol;
+import com.xjeffrose.xio.tracing.HttpServerTracingDispatch;
+import com.xjeffrose.xio.tracing.XioTracing;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.WriteBufferWaterMark;
+import io.netty.channel.*;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.ssl.SslContext;
 import java.net.InetSocketAddress;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
@@ -31,6 +29,7 @@ public class XioClientBootstrap {
   private ChannelConfiguration channelConfig;
   private final ClientConfig config;
   private final SslContext sslContext;
+  private final XioTracing tracing;
   @Setter private InetSocketAddress address;
   @Setter private Distributor distributor;
   @Setter private boolean ssl;
@@ -44,6 +43,7 @@ public class XioClientBootstrap {
   private XioClientBootstrap(XioClientBootstrap other) {
     this.config = other.config;
     this.sslContext = other.sslContext;
+    this.tracing = other.tracing;
     this.address = other.address;
     this.distributor = other.distributor;
     this.ssl = other.ssl;
@@ -56,6 +56,7 @@ public class XioClientBootstrap {
 
   public XioClientBootstrap(ClientConfig config) {
     this.config = config;
+    this.tracing = config.tracing();
     usePool = false;
     tracingHandler = () -> null;
     sslContext = SslContextFactory.buildClientContext(config.getTls());
@@ -98,6 +99,11 @@ public class XioClientBootstrap {
     }
 
     return new DefaultChannelInitializer(state);
+  }
+
+  @Nullable
+  public HttpServerTracingDispatch buildTracingDispatch() {
+    return tracing.newDispatch(ssl);
   }
 
   public Bootstrap buildBootstrap(ChannelConfiguration channelConfig) {

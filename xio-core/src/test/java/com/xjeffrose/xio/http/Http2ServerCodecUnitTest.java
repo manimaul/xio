@@ -1,8 +1,6 @@
 package com.xjeffrose.xio.http;
 
-import static io.netty.handler.codec.http.HttpMethod.*;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
-import static io.netty.handler.codec.http.HttpVersion.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
@@ -65,7 +63,7 @@ public class Http2ServerCodecUnitTest extends Assert {
     outputReceived = new CountDownLatch(1);
 
     Http2Headers headers = new DefaultHttp2Headers().method("GET").path("/");
-    Http2Request requestIn = Http2Request.build(1, headers, true);
+    Http2Request requestIn = Http2Request.build(1, headers, true, null);
 
     channel.writeInbound(requestIn);
 
@@ -91,7 +89,7 @@ public class Http2ServerCodecUnitTest extends Assert {
     outputReceived = new CountDownLatch(3);
 
     Http2Headers headers = new DefaultHttp2Headers().method("POST").path("/");
-    Http2Request requestIn = Http2Request.build(1, headers, false);
+    Http2Request requestIn = Http2Request.build(1, headers, false, null);
     ByteBuf body1 = ByteBufUtil.writeUtf8(UnpooledByteBufAllocator.DEFAULT, "body1");
     Http2Request content = Http2Request.build(1, new DefaultHttp2DataFrame(body1, false), false);
     ByteBuf body2 = ByteBufUtil.writeUtf8(UnpooledByteBufAllocator.DEFAULT, "body2");
@@ -148,13 +146,13 @@ public class Http2ServerCodecUnitTest extends Assert {
     outputReceived = new CountDownLatch(4);
 
     Http2Headers headers = new DefaultHttp2Headers().method("POST").path("/");
-    Http2Request requestIn = Http2Request.build(1, headers, false);
+    Http2Request requestIn = Http2Request.build(1, headers, false, null);
     ByteBuf body1 = ByteBufUtil.writeUtf8(UnpooledByteBufAllocator.DEFAULT, "body1");
     Http2Request content = Http2Request.build(1, new DefaultHttp2DataFrame(body1, false), false);
     ByteBuf body2 = ByteBufUtil.writeUtf8(UnpooledByteBufAllocator.DEFAULT, "body2");
     Http2Request lastContent = Http2Request.build(1, new DefaultHttp2DataFrame(body2, true), false);
     Http2Headers trailers = new DefaultHttp2Headers().set("foo", "bar");
-    Http2Request lastHeaders = Http2Request.build(1, trailers, true);
+    Http2Request lastHeaders = Http2Request.build(1, trailers, true, null);
 
     channel.writeInbound(requestIn);
     channel.writeInbound(content);
@@ -221,7 +219,7 @@ public class Http2ServerCodecUnitTest extends Assert {
   public void testFullResponse() throws Exception {
     outputReceived = new CountDownLatch(2);
     Http2Headers headersIn = new DefaultHttp2Headers().method("GET").path("/");
-    Http2Request requestIn = Http2Request.build(1, headersIn, true);
+    Http2Request requestIn = Http2Request.build(1, headersIn, true, null);
     FullResponse responseIn = ResponseBuilders.newOk().body(Unpooled.EMPTY_BUFFER).build();
 
     channel.writeInbound(requestIn);
@@ -247,7 +245,7 @@ public class Http2ServerCodecUnitTest extends Assert {
     ByteBuf body = ByteBufUtil.writeUtf8(UnpooledByteBufAllocator.DEFAULT, "response");
 
     Http2Headers headersIn = new DefaultHttp2Headers().method("GET").path("/");
-    Http2Request requestIn = Http2Request.build(1, headersIn, true);
+    Http2Request requestIn = Http2Request.build(1, headersIn, true, null);
     FullResponse responseIn = ResponseBuilders.newOk().body(body).build();
 
     channel.writeInbound(requestIn);
@@ -279,7 +277,7 @@ public class Http2ServerCodecUnitTest extends Assert {
   public void testStreamingResponse() throws Exception {
     outputReceived = new CountDownLatch(3);
     Http2Headers headersIn = new DefaultHttp2Headers().method("GET").path("/");
-    Http2Request requestIn = Http2Request.build(1, headersIn, true);
+    Http2Request requestIn = Http2Request.build(1, headersIn, true, null);
 
     StreamingResponse responseIn =
         DefaultStreamingResponse.builder().status(OK).headers(new DefaultHeaders()).build();
@@ -333,7 +331,7 @@ public class Http2ServerCodecUnitTest extends Assert {
   public void testStreamingResponseWithTrailingHeaders() {
     outputReceived = new CountDownLatch(3);
     Http2Headers headersIn = new DefaultHttp2Headers().method("GET").path("/");
-    Http2Request requestIn = Http2Request.build(1, headersIn, true);
+    Http2Request requestIn = Http2Request.build(1, headersIn, true, null);
 
     StreamingResponse responseIn =
         DefaultStreamingResponse.builder().status(OK).headers(new DefaultHeaders()).build();

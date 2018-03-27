@@ -1,9 +1,11 @@
 package com.xjeffrose.xio.http;
 
-import static io.netty.handler.codec.http.HttpMethod.*;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
-import static io.netty.handler.codec.http.HttpVersion.*;
+import static io.netty.handler.codec.http.HttpMethod.POST;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.mockito.Mockito.mock;
 
+import brave.Span;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -13,19 +15,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpContent;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.DefaultLastHttpContent;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -75,7 +65,7 @@ public class Http1ClientCodecUnitTest extends Assert {
   public void testFullRequest() throws Exception {
     outputReceived = new CountDownLatch(1);
 
-    FullRequest requestIn = RequestBuilders.newGet("/").build();
+    FullRequest requestIn = RequestBuilders.newGet("/").traceSpan(mock(Span.class)).build();
 
     channel.writeOutbound(requestIn);
 
@@ -97,7 +87,8 @@ public class Http1ClientCodecUnitTest extends Assert {
   public void testFullRequestWithBody() throws Exception {
     outputReceived = new CountDownLatch(1);
     ByteBuf body = ByteBufUtil.writeUtf8(UnpooledByteBufAllocator.DEFAULT, "body");
-    FullRequest requestIn = RequestBuilders.newPost("/").body(body).build();
+    FullRequest requestIn =
+        RequestBuilders.newPost("/").traceSpan(mock(Span.class)).body(body).build();
 
     channel.writeOutbound(requestIn);
 
@@ -124,6 +115,7 @@ public class Http1ClientCodecUnitTest extends Assert {
             .method(POST)
             .path("/")
             .headers(new DefaultHeaders())
+            .traceSpan(mock(Span.class))
             .build();
     ByteBuf body1 = ByteBufUtil.writeUtf8(UnpooledByteBufAllocator.DEFAULT, "body1");
     StreamingData content =

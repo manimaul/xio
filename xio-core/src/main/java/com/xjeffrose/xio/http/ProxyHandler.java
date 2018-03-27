@@ -4,6 +4,7 @@ import com.xjeffrose.xio.client.ClientConfig;
 import com.xjeffrose.xio.core.SocketAddressHelper;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.AsciiString;
+import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -49,7 +50,7 @@ public class ProxyHandler implements PipelineRequestHandler {
             .entrySet()
             .stream() // stream the entry set of matches
             .filter(e -> e.getKey().equals("path")) // find the entry with key path
-            .map(e -> e.getValue()) // extract the value (aka what did the regex match)
+            .map(Map.Entry::getValue) // extract the value (aka what did the regex match)
             .findFirst(); // extract the first (Optional) result
 
     return pathSuffix
@@ -67,6 +68,7 @@ public class ProxyHandler implements PipelineRequestHandler {
               .body(request.body())
               .method(request.method())
               .path(path)
+              .traceSpan(request.traceSpan())
               .headers(request.headers())
               .host(proxyHost)
               .build();
@@ -75,6 +77,7 @@ public class ProxyHandler implements PipelineRequestHandler {
           DefaultStreamingRequest.builder()
               .method(request.method())
               .path(path)
+              .traceSpan(request.traceSpan())
               .headers(request.headers())
               .host(proxyHost)
               .build();
@@ -101,16 +104,6 @@ public class ProxyHandler implements PipelineRequestHandler {
 
   @Override
   public void handle(ChannelHandlerContext ctx, Request request, RouteState route) {
-
-    // TODO(CK): propagate any incoming tracing span to the outgoing request
-    // below is the old deprecated pattern for this.
-    /*
-    XioRequest request =
-        HttpTracingState.hasSpan(ctx)
-            ? new XioRequest(payload, HttpTracingState.getSpan(ctx).context())
-            : new XioRequest(payload, null);
-    */
-
     // 1) map the incoming request path to the outgoing request path
     // 2) set the outgoing request host
     // 3) set the tracing span (if there is one)

@@ -1,5 +1,6 @@
 package com.xjeffrose.xio.http;
 
+import com.xjeffrose.xio.tracing.HttpServerTracingDispatch;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http2.DefaultHttp2DataFrame;
@@ -8,6 +9,7 @@ import io.netty.handler.codec.http2.Http2Flags;
 import io.netty.handler.codec.http2.Http2FrameListener;
 import io.netty.handler.codec.http2.Http2Headers;
 import io.netty.handler.codec.http2.Http2Settings;
+import lombok.val;
 
 // TODO(CK): break this out into client/server classes
 
@@ -15,13 +17,16 @@ import io.netty.handler.codec.http2.Http2Settings;
 public class Http2FrameForwarder implements Http2FrameListener {
 
   private final boolean isServer;
+  private final HttpServerTracingDispatch tracingFactory;
 
-  public Http2FrameForwarder(boolean isServer) {
-    this.isServer = isServer;
+  public static Http2FrameForwarder create(
+      boolean isServer, HttpServerTracingDispatch tracingFactory) {
+    return new Http2FrameForwarder(isServer, tracingFactory);
   }
 
-  public static Http2FrameForwarder create(boolean isServer) {
-    return new Http2FrameForwarder(isServer);
+  private Http2FrameForwarder(boolean isServer, HttpServerTracingDispatch tracingFactory) {
+    this.isServer = isServer;
+    this.tracingFactory = tracingFactory;
   }
 
   @Override
@@ -49,7 +54,8 @@ public class Http2FrameForwarder implements Http2FrameListener {
       ChannelHandlerContext ctx, int streamId, Http2Headers headers, int padding, boolean endStream)
       throws Http2Exception {
     if (isServer) {
-      ctx.fireChannelRead(Http2Request.build(streamId, headers, endStream));
+      val span = tracingFactory != null ? tracingFactory.onRequest(ctx, headers) : null;
+      ctx.fireChannelRead(Http2Request.build(streamId, headers, endStream, span));
     } else {
       ctx.fireChannelRead(Http2Response.build(streamId, headers, endStream));
     }
@@ -67,7 +73,8 @@ public class Http2FrameForwarder implements Http2FrameListener {
       boolean endStream)
       throws Http2Exception {
     if (isServer) {
-      ctx.fireChannelRead(Http2Request.build(streamId, headers, endStream));
+      val span = tracingFactory != null ? tracingFactory.onRequest(ctx, headers) : null;
+      ctx.fireChannelRead(Http2Request.build(streamId, headers, endStream, span));
     } else {
       ctx.fireChannelRead(Http2Response.build(streamId, headers, endStream));
     }

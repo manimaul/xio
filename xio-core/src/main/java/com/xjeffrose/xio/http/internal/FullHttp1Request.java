@@ -25,6 +25,8 @@ public class FullHttp1Request implements FullRequest {
     this(delegate, null);
   }
 
+  // region Request
+
   @Override
   public boolean startOfStream() {
     return true;

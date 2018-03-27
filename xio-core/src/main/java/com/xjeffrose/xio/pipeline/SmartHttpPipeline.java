@@ -1,19 +1,14 @@
 package com.xjeffrose.xio.pipeline;
 
 import com.xjeffrose.xio.application.ApplicationState;
-import com.xjeffrose.xio.http.ApplicationCodecPlaceholderHandler;
-import com.xjeffrose.xio.http.CodecPlaceholderHandler;
-import com.xjeffrose.xio.http.GentleSslHandler;
-import com.xjeffrose.xio.http.Http2HandlerBuilder;
-import com.xjeffrose.xio.http.HttpNegotiationHandler;
-import com.xjeffrose.xio.http.HttpsUpgradeHandler;
-import com.xjeffrose.xio.http.RouteApplicator;
+import com.xjeffrose.xio.http.*;
 import com.xjeffrose.xio.server.XioServerConfig;
 import com.xjeffrose.xio.server.XioServerState;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpServerCodec;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 
 /**
  * SmartHttpPipeline does http well. If configured with a certificate pair (which it should be by
@@ -43,13 +38,19 @@ public class SmartHttpPipeline extends XioServerPipeline {
     return "ssl-http/1.1";
   }
 
-  public ChannelHandler buildHttp2Handler() {
-    return new Http2HandlerBuilder().server(true).build();
+  public ChannelHandler buildHttp2Handler(XioServerConfig config) {
+    return new Http2HandlerBuilder(
+            (isServer) -> {
+              val dispatch = config.getTracing().newDispatch(config.isTlsEnabled());
+              return Http2FrameForwarder.create(isServer, dispatch);
+            })
+        .server(true)
+        .build();
   }
 
   public ChannelHandler getCodecNegotiationHandler(XioServerConfig config) {
     if (config.getTls().isUseSsl()) {
-      return new HttpNegotiationHandler(this::buildHttp2Handler);
+      return new HttpNegotiationHandler(() -> buildHttp2Handler(config));
     } else {
       return null;
     }

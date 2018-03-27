@@ -10,7 +10,7 @@ public class XioRequestEncoder extends MessageToMessageEncoder<XioRequest> {
   @Override
   protected void encode(ChannelHandlerContext ctx, XioRequest msg, List<Object> out) {
     if (msg.hasContext()) {
-      HttpTracingState.setContext(ctx, msg.getContext());
+      HttpTracingState.setTraceContext(ctx, msg.getContext());
     }
 
     out.add(msg.getPayload());

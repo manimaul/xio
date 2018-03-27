@@ -8,14 +8,7 @@ import com.xjeffrose.xio.core.XioExceptionLogger;
 import com.xjeffrose.xio.core.XioMessageLogger;
 import com.xjeffrose.xio.filter.Http1Filter;
 import com.xjeffrose.xio.filter.IpFilter;
-import com.xjeffrose.xio.server.XioBehavioralRuleEngine;
-import com.xjeffrose.xio.server.XioConnectionLimiter;
-import com.xjeffrose.xio.server.XioResponseClassifier;
-import com.xjeffrose.xio.server.XioServer;
-import com.xjeffrose.xio.server.XioServerConfig;
-import com.xjeffrose.xio.server.XioServerLimits;
-import com.xjeffrose.xio.server.XioServerState;
-import com.xjeffrose.xio.server.XioWebApplicationFirewall;
+import com.xjeffrose.xio.server.*;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 
@@ -84,7 +77,8 @@ public abstract class XioBasePipeline implements XioPipelineFragment {
     } else {
       throw new RuntimeException("No codec configured");
     }
-    addHandler(pipeline, "distributed tracing", state.tracingHandler(appState));
+    addHandler(
+        pipeline, "distributed tracing", state.tracingHandler(appState)); // todo: WBK going away
     addHandler(pipeline, "application codec", getApplicationCodec());
     addHandler(pipeline, "application router", getApplicationRouter());
     addHandler(pipeline, "authentication handler", getAuthenticationHandler());

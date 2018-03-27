@@ -31,18 +31,19 @@ public class Http2ServerCodec extends ChannelDuplexHandler {
 
   Request wrapHeaders(Http2Headers headers, int streamId, boolean eos) {
     if (eos) {
-      return new FullHttp2Request(headers, streamId);
+      return new FullHttp2Request(headers, streamId, null); // todo: WBK
     } else {
-      return new StreamingHttp2Request(headers, streamId);
+      return new StreamingHttp2Request(headers, streamId, null); // todo: WBK
     }
   }
 
   Request wrapRequest(ChannelHandlerContext ctx, Http2Request msg) {
+    // this is where the request is initially created
     if (msg.payload instanceof Http2Headers) {
       Http2Headers headers = (Http2Headers) msg.payload;
       if (msg.eos && headers.method() == null && headers.status() == null) {
         Request request =
-            new StreamingRequestData(getChannelRequest(ctx), new Http2StreamingData(headers));
+            new StreamingRequestData(getChannelRequest(ctx), new Http2StreamingData(headers), null);
         return request;
       } else {
         Request request = wrapHeaders(headers, msg.streamId, msg.eos);
@@ -53,7 +54,8 @@ public class Http2ServerCodec extends ChannelDuplexHandler {
       Request request =
           new StreamingRequestData(
               getChannelRequest(ctx),
-              new Http2StreamingData(((Http2DataFrame) msg.payload).content(), msg.eos));
+              new Http2StreamingData(((Http2DataFrame) msg.payload).content(), msg.eos),
+              null);
       return request;
     }
     // TODO(CK): throw an exception?

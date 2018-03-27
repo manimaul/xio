@@ -76,7 +76,7 @@ public class ApplicationBootstrap {
 
   public ApplicationBootstrap addServer(
       String server, UnaryOperator<XioServerBootstrap> configure) {
-    XioServerConfig serverConfig = new XioServerConfig(config.getServer(server));
+    XioServerConfig serverConfig = new XioServerConfig(config.getServer(server), state.tracing());
     XioServerState serverState = new XioServerState(serverConfig);
     XioServerBootstrap serverBootstrap =
         configure.apply(

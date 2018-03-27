@@ -3,6 +3,7 @@ package com.xjeffrose.xio.server;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.xjeffrose.xio.SSL.TlsConfig;
+import com.xjeffrose.xio.tracing.XioTracing;
 import io.netty.channel.ChannelOption;
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -18,8 +19,13 @@ public class XioServerConfig {
   @Getter private XioServerLimits limits;
   @Getter private TlsConfig tls;
   @Getter private final boolean messageLoggerEnabled;
+  @Getter private final XioTracing tracing;
 
   public XioServerConfig(Config config) {
+    this(config, new XioTracing(config));
+  }
+
+  public XioServerConfig(Config config, XioTracing tracing) {
     bootstrapOptions = null;
     name = config.getString("name");
     String address;
@@ -37,6 +43,11 @@ public class XioServerConfig {
     if (!tls.isUseSsl() && tls.isLogInsecureConfig()) {
       log.warn("Server '{}' has useSsl set to false!", name);
     }
+    this.tracing = tracing;
+  }
+
+  public static XioServerConfig fromConfig(String key, Config config, XioTracing tracing) {
+    return new XioServerConfig(config.getConfig(key), tracing);
   }
 
   public static XioServerConfig fromConfig(String key, Config config) {

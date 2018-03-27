@@ -16,7 +16,9 @@ import com.xjeffrose.xio.server.XioServer;
 import com.xjeffrose.xio.server.XioServerConfig;
 import com.xjeffrose.xio.server.XioServerState;
 import com.xjeffrose.xio.tracing.XioTracing;
-import helloworld.*;
+import helloworld.GreeterGrpc;
+import helloworld.HelloReply;
+import helloworld.HelloRequest;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.netty.NettyChannelBuilder;
@@ -349,7 +351,8 @@ public class GrpcFunctionalTest extends Assert {
                                 ch.alloc(), address.getHostString(), address.getPort()))
                         .addLast(
                             "codec",
-                            new Http2HandlerBuilder(Http2FrameForwarder::create)
+                            new Http2HandlerBuilder(
+                                    (isServer) -> Http2FrameForwarder.create(isServer, null))
                                 .server(false)
                                 .build())
                         .addLast("stream mapper", new Http2StreamMapper())

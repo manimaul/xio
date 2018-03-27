@@ -3,6 +3,7 @@ package com.xjeffrose.xio.client;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.xjeffrose.xio.SSL.TlsConfig;
+import com.xjeffrose.xio.tracing.XioTracing;
 import io.netty.channel.ChannelOption;
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -20,6 +21,7 @@ public class ClientConfig {
   private final boolean messageLoggerEnabled;
   private final InetSocketAddress local;
   private final InetSocketAddress remote;
+  private final XioTracing tracing;
 
   public String getName() {
     return name;
@@ -48,6 +50,7 @@ public class ClientConfig {
       local = new InetSocketAddress(config.getString("localIp"), config.getInt("localPort"));
     }
     remote = new InetSocketAddress(config.getString("remoteIp"), config.getInt("remotePort"));
+    this.tracing = new XioTracing(config);
   }
 
   public boolean isTlsEnabled() {

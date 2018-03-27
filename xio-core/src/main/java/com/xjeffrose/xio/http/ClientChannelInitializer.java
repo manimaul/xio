@@ -23,8 +23,8 @@ public class ClientChannelInitializer extends ChannelInitializer {
     this.tracing = tracing;
   }
 
-  private ChannelHandler buildHttp2Handler() {
-    return new Http2HandlerBuilder().server(false).build();
+  private ChannelHandler buildHttp2Handler(Http2FrameForwarder frameForwarder) {
+    return new Http2HandlerBuilder((isServer) -> frameForwarder).server(false).build();
   }
 
   @Override
@@ -41,7 +41,11 @@ public class ClientChannelInitializer extends ChannelInitializer {
         .pipeline()
         .addLast(
             "negotiation handler",
-            new HttpClientNegotiationHandler(ClientChannelInitializer.this::buildHttp2Handler))
+            new HttpClientNegotiationHandler(
+                () ->
+                    buildHttp2Handler(
+                        Http2FrameForwarder.create(
+                            false, tracing.newDispatch(state.config.isTlsEnabled())))))
         .addLast("codec", CodecPlaceholderHandler.INSTANCE);
     if (tracing != null) {
       val traceHandler = tracing.newClientHandler(state.config.isTlsEnabled());

@@ -2,12 +2,7 @@ package com.xjeffrose.xio.http;
 
 import static io.netty.handler.logging.LogLevel.INFO;
 
-import io.netty.handler.codec.http2.AbstractHttp2ConnectionHandlerBuilder;
-import io.netty.handler.codec.http2.Http2ConnectionDecoder;
-import io.netty.handler.codec.http2.Http2ConnectionEncoder;
-import io.netty.handler.codec.http2.Http2FrameListener;
-import io.netty.handler.codec.http2.Http2FrameLogger;
-import io.netty.handler.codec.http2.Http2Settings;
+import io.netty.handler.codec.http2.*;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,10 +17,6 @@ public class Http2HandlerBuilder
   public Http2HandlerBuilder(Function<Boolean, Http2FrameListener> frameListener) {
     this.frameListener = frameListener;
     frameLogger(logger);
-  }
-
-  public Http2HandlerBuilder() {
-    this(Http2FrameForwarder::create);
   }
 
   @Override

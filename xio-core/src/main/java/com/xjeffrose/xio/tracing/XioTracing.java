@@ -5,6 +5,7 @@ import brave.context.slf4j.MDCCurrentTraceContext;
 import brave.http.HttpTracing;
 import brave.sampler.Sampler;
 import com.typesafe.config.Config;
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.val;
 import zipkin.Span;
@@ -43,6 +44,15 @@ public class XioTracing {
 
   public boolean enabled() {
     return tracing != null;
+  }
+
+  @Nullable
+  public HttpServerTracingDispatch newDispatch(boolean tls) {
+    if (!enabled()) {
+      return null;
+    }
+    HttpTracing httpTracing = HttpTracing.create(tracing);
+    return new HttpServerTracingDispatch(httpTracing, tls);
   }
 
   public HttpServerTracingHandler newServerHandler(boolean tls) {

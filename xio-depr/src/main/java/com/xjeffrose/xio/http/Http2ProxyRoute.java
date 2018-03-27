@@ -5,12 +5,7 @@ import com.xjeffrose.xio.client.DefaultChannelInitializer;
 import com.xjeffrose.xio.client.XioClient;
 import com.xjeffrose.xio.client.XioClientBootstrap;
 import com.xjeffrose.xio.server.Route;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
+import io.netty.channel.*;
 import io.netty.handler.codec.http2.Http2DataFrame;
 import io.netty.handler.codec.http2.Http2Headers;
 import io.netty.util.AttributeKey;
@@ -102,7 +97,13 @@ public class Http2ProxyRoute implements Http2RouteProvider {
               .ssl(config.needSSL)
               .initializerFactory(ProxyInitializer::new)
               .applicationProtocol(
-                  () -> new Http2HandlerBuilder(Http2FrameForwarder::create).server(false).build())
+                  () ->
+                      new Http2HandlerBuilder(
+                              (isServer) ->
+                                  Http2FrameForwarder.create(
+                                      isServer, bootstrap.buildTracingDispatch()))
+                          .server(false)
+                          .build())
               .handler(new RawBackendHandler(ctx))
               .build();
       ctx.channel().attr(key).set(client);
@@ -122,17 +123,6 @@ public class Http2ProxyRoute implements Http2RouteProvider {
   void handleHeaders(ChannelHandlerContext ctx, Http2Request request) {
     log.debug("handleHeaders: {} {}", ctx, request);
     XioClient client = buildClient(ctx);
-
-    /*
-    // TODO(CK): How do we trace over http2?
-    XioRequest request;
-
-    if (HttpTracingState.hasSpan(ctx)) {
-      request = new XioRequest(payload, HttpTracingState.getSpan(ctx).context());
-    } else {
-      request = new XioRequest(payload, null);
-    }
-    */
 
     log.info("Requesting {}", request);
     client.write(request);
