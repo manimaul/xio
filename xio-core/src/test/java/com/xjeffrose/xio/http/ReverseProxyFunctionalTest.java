@@ -16,6 +16,7 @@ import com.xjeffrose.xio.core.SocketAddressHelper;
 import com.xjeffrose.xio.fixtures.JulBridge;
 import com.xjeffrose.xio.pipeline.SmartHttpPipeline;
 import com.xjeffrose.xio.test.OkHttpUnsafe;
+import com.xjeffrose.xio.tracing.FakeTracer;
 import com.xjeffrose.xio.tracing.XioTracing;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -45,6 +46,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import zipkin.Span;
 
 @Slf4j
 public class ReverseProxyFunctionalTest extends Assert {
@@ -54,11 +56,12 @@ public class ReverseProxyFunctionalTest extends Assert {
     JulBridge.initialize();
   }
 
-  OkHttpClient client;
+  OkHttpClient okClient;
   Config config;
   ApplicationConfig appConfig;
   Application reverseProxy;
   MockWebServer server;
+  FakeTracer fakeTracer;
 
   static Application setupReverseProxy(
       ApplicationConfig appConfig, ProxyRouteConfig proxyConfig, XioTracing tracing) {
@@ -116,7 +119,10 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupBack(h2Back);
 
     String front = h2Front ? "h2" : "h1";
-    appConfig = ApplicationConfig.fromConfig("xio." + front + "ReverseProxy", config);
+    appConfig = new ApplicationConfig(config.getConfig("xio." + front + "ReverseProxy"), cfg -> {
+      fakeTracer = new FakeTracer(cfg);
+      return fakeTracer;
+    });
     // TODO(CK): this creates global state across tests we should do something smarter
     System.setProperty("xio.baseClient.remotePort", Integer.toString(server.getPort()));
     System.setProperty("xio.testProxyRoute.proxyPath", "/hello/");
@@ -126,18 +132,18 @@ public class ReverseProxyFunctionalTest extends Assert {
 
     reverseProxy =
         setupReverseProxy(
-            appConfig, proxyConfig, new XioTracing(root.getConfig("xio.testProxyRoute")));
+            appConfig, proxyConfig, fakeTracer);
   }
 
   void setupClient(boolean h2) throws Exception {
     if (h2) {
-      client =
+      okClient =
           OkHttpUnsafe.getUnsafeClient()
               .newBuilder()
               .protocols(Arrays.asList(HTTP_2, HTTP_1_1))
               .build();
     } else {
-      client =
+      okClient =
           OkHttpUnsafe.getUnsafeClient()
               .newBuilder()
               .protocols(Collections.singletonList(HTTP_1_1))
@@ -147,7 +153,7 @@ public class ReverseProxyFunctionalTest extends Assert {
 
   @After
   public void tearDown() throws Exception {
-    client.connectionPool().evictAll();
+    okClient.connectionPool().evictAll();
     if (reverseProxy != null) {
       reverseProxy.close();
     }
@@ -177,7 +183,7 @@ public class ReverseProxyFunctionalTest extends Assert {
     Request request = new Request.Builder().url(url).build();
 
     server.enqueue(buildResponse());
-    Response response = client.newCall(request).execute();
+    Response response = okClient.newCall(request).execute();
     assertEquals(expectedProtocol, response.protocol());
 
     RecordedRequest servedRequest = server.takeRequest();
@@ -191,8 +197,8 @@ public class ReverseProxyFunctionalTest extends Assert {
     Request request = new Request.Builder().url(url).post(body).build();
 
     server.enqueue(buildResponse());
-    Response response = client.newCall(request).execute();
-    assertEquals("unexpected client response protocol", expectedProtocol, response.protocol());
+    Response response = okClient.newCall(request).execute();
+    assertEquals("unexpected okClient response protocol", expectedProtocol, response.protocol());
 
     RecordedRequest servedRequest = server.takeRequest();
     assertEquals("/hello/", servedRequest.getRequestUrl().encodedPath());
@@ -237,6 +243,7 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupFrontBack(true, false);
 
     get(port(), false, HTTP_2);
+    fakeTracer.verifyCount(1);
   }
 
   @Test
@@ -245,6 +252,7 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupFrontBack(true, false);
 
     post(port(), false, HTTP_2);
+    fakeTracer.verifyCount(1);
   }
 
   @Test
@@ -253,6 +261,7 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupFrontBack(true, true);
 
     get(port(), false, HTTP_2);
+    fakeTracer.verifyCount(1);
   }
 
   @Test
@@ -261,6 +270,7 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupFrontBack(false, true);
 
     get(port(), false, HTTP_1_1);
+    fakeTracer.verifyCount(1);
   }
 
   @Test
@@ -269,6 +279,7 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupFrontBack(false, true);
 
     post(port(), false, HTTP_1_1);
+    fakeTracer.verifyCount(1);
   }
 
   @Test
@@ -277,6 +288,24 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupFrontBack(true, false);
     final int iterations = 2;
     requests(iterations, false);
+
+    List<Span> sentSpans = fakeTracer.spansResult(iterations);
+    Span first = sentSpans.get(0);
+    Span second = sentSpans.get(1);
+    assertNotEquals(first.traceId, second.traceId);
+  }
+
+  @Test
+  public void testHttp1toHttp1ServerGetMany() throws Exception {
+    setupClient(false);
+    setupFrontBack(false, false);
+    final int iterations = 2;
+    requests(iterations, false);
+
+    List<Span> sentSpans = fakeTracer.spansResult(iterations);
+    Span first = sentSpans.get(0);
+    Span second = sentSpans.get(1);
+    assertNotEquals(first.traceId, second.traceId);
   }
 
   @Test
@@ -285,6 +314,11 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupFrontBack(true, true);
     final int iterations = 2;
     requests(iterations, false);
+
+    List<Span> sentSpans = fakeTracer.spansResult(iterations);
+    Span first = sentSpans.get(0);
+    Span second = sentSpans.get(1);
+    assertNotEquals(first.traceId, second.traceId);
   }
 
   @Test
@@ -293,6 +327,11 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupFrontBack(true, false);
     final int iterations = 2;
     requests(iterations, true);
+
+    List<Span> sentSpans = fakeTracer.spansResult(iterations);
+    Span first = sentSpans.get(0);
+    Span second = sentSpans.get(1);
+    assertNotEquals(first.traceId, second.traceId);
   }
 
   @Test
@@ -301,6 +340,24 @@ public class ReverseProxyFunctionalTest extends Assert {
     setupFrontBack(true, true);
     final int iterations = 2;
     requests(iterations, true);
+
+    List<Span> sentSpans = fakeTracer.spansResult(iterations);
+    Span first = sentSpans.get(0);
+    Span second = sentSpans.get(1);
+    assertNotEquals(first.traceId, second.traceId);
+  }
+
+  @Test
+  public void testHttp1toHttp1ServerPostMany() throws Exception {
+    setupClient(false);
+    setupFrontBack(false, false);
+    final int iterations = 2;
+    requests(iterations, true);
+
+    List<Span> sentSpans = fakeTracer.spansResult(iterations);
+    Span first = sentSpans.get(0);
+    Span second = sentSpans.get(1);
+    assertNotEquals(first.traceId, second.traceId);
   }
 
   private void requests(int iterations, boolean post) throws Exception {
@@ -320,7 +377,7 @@ public class ReverseProxyFunctionalTest extends Assert {
                   } else {
                     request.get();
                   }
-                  Response response = client.newCall(request.build()).execute();
+                  Response response = okClient.newCall(request.build()).execute();
                   responses.offer(response);
                 } catch (IOException error) {
                   error.printStackTrace();
