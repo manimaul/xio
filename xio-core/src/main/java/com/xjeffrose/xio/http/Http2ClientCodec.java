@@ -18,18 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class Http2ClientCodec extends ChannelDuplexHandler {
 
-  private static final AttributeKey<Response> CHANNEL_RESPONSE_KEY =
-      AttributeKey.newInstance("xio_channel_h2_response");
-
-  private static void setChannelResponse(ChannelHandlerContext ctx, Response response) {
-    ctx.channel().attr(CHANNEL_RESPONSE_KEY).set(response);
-  }
-
-  private static Response getChannelResponse(ChannelHandlerContext ctx) {
-    // TODO(CK): Deal with null?
-    return ctx.channel().attr(CHANNEL_RESPONSE_KEY).get();
-  }
-
   Response wrapHeaders(Http2Headers headers, int streamId, boolean eos) {
     if (eos) {
       return new FullHttp2Response(headers, streamId);
@@ -40,23 +28,34 @@ public class Http2ClientCodec extends ChannelDuplexHandler {
 
   Response wrapResponse(ChannelHandlerContext ctx, Http2Response msg) {
     log.debug("wrapResponse msg={}", msg);
+    final Response response;
+    Http2MessageSession session = Http2MessageSession.lazyCreateSession(ctx);
     if (msg.payload instanceof Http2Headers) {
       Http2Headers headers = (Http2Headers) msg.payload;
       if (msg.eos && headers.method() == null && headers.status() == null) {
-        return new SegmentedResponseData(
-            getChannelResponse(ctx), new Http2SegmentedData(headers, msg.streamId));
+        response = session.currentResponse(msg.streamId).map(resp  -> {
+          Response r = new SegmentedResponseData(
+            resp, new Http2SegmentedData(headers, msg.streamId));
+            session.onResponse(r);
+          return r;
+        }).orElse(null);
       } else {
-        Response response = wrapHeaders(headers, msg.streamId, msg.eos);
-        setChannelResponse(ctx, response);
-        return response;
+        response = wrapHeaders(headers, msg.streamId, msg.eos);
+        session.onResponse(response);
       }
     } else if (msg.payload instanceof Http2DataFrame) {
-      return new SegmentedResponseData(
-          getChannelResponse(ctx),
+      response = session.currentResponse(msg.streamId).map(resp  -> {
+        Response r = new SegmentedResponseData(resp,
           new Http2SegmentedData(((Http2DataFrame) msg.payload).content(), msg.eos, msg.streamId));
+        session.onResponse(r);
+        return r;
+      }).orElse(null);
+    } else {
+      // TODO(CK): throw an exception?
+      response = null;
     }
-    // TODO(CK): throw an exception?
-    return null;
+
+    return response;
   }
 
   @Override
@@ -75,6 +74,7 @@ public class Http2ClientCodec extends ChannelDuplexHandler {
       response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
     }
     */
+    Http2MessageSession.lazyCreateSession(ctx).onRequest(request);
 
     Http2Headers headers = request.headers().http2Headers();
 

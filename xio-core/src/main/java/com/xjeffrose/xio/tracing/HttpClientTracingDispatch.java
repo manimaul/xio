@@ -7,14 +7,11 @@ import brave.http.HttpClientHandler;
 import brave.http.HttpTracing;
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.TraceContext;
-import com.xjeffrose.xio.http.Headers;
-import com.xjeffrose.xio.http.Message;
-import com.xjeffrose.xio.http.Request;
-import com.xjeffrose.xio.http.Response;
+import com.xjeffrose.xio.http.*;
 import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.Optional;
+
 import lombok.Getter;
 import lombok.val;
 
@@ -49,14 +46,12 @@ public class HttpClientTracingDispatch extends HttpTracingState {
 
     Span span = handler.handleSend(injector, addRemoteIp(ctx, request.headers()), request);
     request.httpTraceInfo().setSpan(span);
-    setSpan(ctx, span);
 
     scope.ifPresent(CurrentTraceContext.Scope::close);
   }
 
   public void onResponse(ChannelHandlerContext ctx, Response response) {
-    Optional<Span> requestSpan = popSpan(ctx);
-    requestSpan.ifPresent(
+    HttpMessageSession.currentRequestSpan(ctx, response.streamId()).ifPresent(
         span -> {
           response.httpTraceInfo().setSpan(span);
           handler.handleReceive(response, null, span);
@@ -64,11 +59,10 @@ public class HttpClientTracingDispatch extends HttpTracingState {
   }
 
   public void onError(ChannelHandlerContext ctx, Throwable cause) {
-    popSpan(ctx).ifPresent((span -> handler.handleReceive(null, cause, span)));
+    HttpMessageSession.allCurrentRequestSpans(ctx).forEach(span -> handler.handleReceive(null, cause, span));
   }
 
   public void onError(ChannelHandlerContext ctx, Message message, Throwable cause) {
-    popSpan(ctx);
     message.httpTraceInfo().getSpan().ifPresent(span -> handler.handleReceive(null, cause, span));
   }
 }

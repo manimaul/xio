@@ -27,25 +27,15 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 
+import static com.xjeffrose.xio.http.Http1MessageSession.lazyCreateSession;
+
 @UnstableApi
 @Slf4j
 public class Http1ServerCodec extends ChannelDuplexHandler {
 
-  private static final AttributeKey<Http1MessageSession> CHANNEL_MESSAGE_SESSION_KEY =
-      AttributeKey.newInstance("xio_channel_h1_message_session");
-
-  private static Http1MessageSession setDefaultMessageSession(ChannelHandlerContext ctx) {
-    Http1MessageSession session = ctx.channel().attr(CHANNEL_MESSAGE_SESSION_KEY).get();
-    if (session == null) {
-      session = new Http1MessageSession();
-      ctx.channel().attr(CHANNEL_MESSAGE_SESSION_KEY).set(session);
-    }
-    return session;
-  }
-
   /** Wrap the HttpObject with the appropriate type and fire read on the next handler. */
   private void wrapRequest(ChannelHandlerContext ctx, HttpObject msg) {
-    Http1MessageSession session = setDefaultMessageSession(ctx);
+    Http1MessageSession session = lazyCreateSession(ctx);
     try {
       Request request;
       if (msg instanceof FullHttpRequest) {
@@ -87,7 +77,7 @@ public class Http1ServerCodec extends ChannelDuplexHandler {
 
   /** Translate the Response object into a netty HttpResponse and fire write on the next handler. */
   private void buildResponse(ChannelHandlerContext ctx, Response response, ChannelPromise promise) {
-    Http1MessageSession session = setDefaultMessageSession(ctx);
+    Http1MessageSession session = lazyCreateSession(ctx);
     try {
       session.onResponse(response);
       Request request = session.currentRequest();
@@ -160,7 +150,7 @@ public class Http1ServerCodec extends ChannelDuplexHandler {
    * Translate the SegmentedData object into a netty HttpContent and fire write on the next handler.
    */
   private void buildContent(ChannelHandlerContext ctx, SegmentedData data, ChannelPromise promise) {
-    Http1MessageSession session = setDefaultMessageSession(ctx);
+    Http1MessageSession session = lazyCreateSession(ctx);
     try {
       session.onResponseData(data);
       HttpObject obj;

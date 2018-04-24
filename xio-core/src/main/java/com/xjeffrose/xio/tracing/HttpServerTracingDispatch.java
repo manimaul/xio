@@ -6,6 +6,7 @@ import brave.http.HttpServerHandler;
 import brave.http.HttpTracing;
 import brave.propagation.TraceContext;
 import com.xjeffrose.xio.http.Headers;
+import com.xjeffrose.xio.http.HttpMessageSession;
 import com.xjeffrose.xio.http.Request;
 import com.xjeffrose.xio.http.Response;
 import io.netty.channel.ChannelHandlerContext;
@@ -35,12 +36,11 @@ class HttpServerTracingDispatch extends HttpTracingState {
 
   public void onRequest(ChannelHandlerContext ctx, Request request) {
     Span span = handler.handleReceive(extractor, addRemoteIp(ctx, request.headers()), request);
-    setSpan(ctx, span);
     request.httpTraceInfo().setSpan(span);
   }
 
   public void onResponse(ChannelHandlerContext ctx, Response response, Throwable error) {
-    popSpan(ctx)
+    HttpMessageSession.currentRequestSpan(ctx, response.streamId())
         .ifPresent(
             span -> {
               response.httpTraceInfo().setSpan(span);

@@ -2,6 +2,8 @@ package com.xjeffrose.xio.http;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.xjeffrose.xio.http.internal.MessageMetaState;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 
 // Fun reading!
@@ -45,6 +47,18 @@ public class Http1MessageSession {
   @enduml
     */
 
+  private static final AttributeKey<Http1MessageSession> CHANNEL_MESSAGE_SESSION_KEY =
+    AttributeKey.newInstance("xio_channel_h1_message_session");
+
+  public static Http1MessageSession lazyCreateSession(ChannelHandlerContext ctx) {
+    Http1MessageSession session = ctx.channel().attr(CHANNEL_MESSAGE_SESSION_KEY).get();
+    if (session == null) {
+      session = new Http1MessageSession();
+      ctx.channel().attr(CHANNEL_MESSAGE_SESSION_KEY).set(session);
+    }
+    return session;
+  }
+
   // We can only handle one request at a time, any additional requests will be ignored.
   private MessageMetaState initialRequest;
   // The client tried to send another request before the first request was responded to.
@@ -60,7 +74,8 @@ public class Http1MessageSession {
     clientTriedPipeline = false;
   }
 
-  public Http1MessageSession() {
+  @VisibleForTesting
+  Http1MessageSession() {
     reset();
   }
 

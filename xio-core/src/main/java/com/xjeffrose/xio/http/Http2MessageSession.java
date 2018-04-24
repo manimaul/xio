@@ -4,9 +4,12 @@ import com.google.common.collect.Maps;
 import com.xjeffrose.xio.http.internal.MessageMetaState;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.AttributeKey;
-import java.util.Map;
-import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
+
+import javax.annotation.Nullable;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * A finite state machine to track the current HTTP/2 message session. This class exists to store
@@ -64,6 +67,9 @@ public class Http2MessageSession {
 
   public void onResponse(Response response) {
     MessageMetaState initialRequest = streamIdRequests.get(response.streamId());
+    if (initialRequest != null && response.startOfMessage()) {
+      initialRequest.response = response;
+    }
     if (initialRequest != null && response.endOfMessage()) {
       initialRequest.responseFinished = true;
     }
@@ -101,6 +107,11 @@ public class Http2MessageSession {
     return null;
   }
 
+  public Stream<Request> allCurrentRequests() {
+    return streamIdRequests.values().stream()
+      .map(messageMetaState -> messageMetaState.request);
+  }
+
   /**
    * Check if the message session has completed for a given streamId, if so remove the message
    * state.
@@ -114,5 +125,10 @@ public class Http2MessageSession {
         && initialRequest.responseFinished) {
       streamIdRequests.remove(streamId);
     }
+  }
+
+  public Optional<Response> currentResponse(int streamId) {
+    return Optional.ofNullable(streamIdRequests.get(streamId))
+      .flatMap(metaState -> Optional.ofNullable(metaState.response));
   }
 }

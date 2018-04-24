@@ -36,7 +36,10 @@ public class FakeTracer extends XioTracing {
     List<Span> spansResult = new ArrayList<>();
     for (int i = 0; i < expectedCount; i++) {
       try {
-        spansResult.add(spans.poll(5, TimeUnit.SECONDS));
+        Span span = spans.poll(5, TimeUnit.SECONDS);
+        if (span != null) {
+          spansResult.add(span);
+        }
       } catch (InterruptedException e) {
         fail("timeout");
         break;
