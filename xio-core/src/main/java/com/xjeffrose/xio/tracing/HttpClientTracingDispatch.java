@@ -15,7 +15,7 @@ import java.net.SocketAddress;
 import lombok.Getter;
 import lombok.val;
 
-public class HttpClientTracingDispatch extends HttpTracingState {
+public class HttpClientTracingDispatch {
 
   @Getter private final Tracing tracing;
   @Getter private final Tracer tracer;
