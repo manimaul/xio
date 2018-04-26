@@ -3,6 +3,9 @@ package com.xjeffrose.xio.http;
 import static com.xjeffrose.xio.helpers.TlsHelper.getKeyManagers;
 import static okhttp3.Protocol.HTTP_1_1;
 import static okhttp3.Protocol.HTTP_2;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
@@ -43,7 +46,7 @@ public class ReverseProxyFunctionalTest extends Assert {
     JulBridge.initialize();
   }
 
-  private static final int NUM_REQUESTS = 10;
+  private static final int NUM_REQUESTS = 4;
 
   OkHttpClient client;
   Config config;
@@ -282,7 +285,7 @@ public class ReverseProxyFunctionalTest extends Assert {
   }
 
   @Test
-  @Ignore("todo: WBK - land of the misfit toys")
+  //@Ignore("todo: WBK - land of the misfit toys")
   public void testHttp2toHttp1ServerGetMany() throws Exception {
     setupClient(true);
     setupFrontBack(true, false);
@@ -297,7 +300,7 @@ public class ReverseProxyFunctionalTest extends Assert {
   }
 
   @Test
-  @Ignore("todo: WBK - land of the misfit toys")
+  //@Ignore("todo: WBK - land of the misfit toys")
   public void testHttp2toHttp1ServerPostMany() throws Exception {
     setupClient(true);
     setupFrontBack(true, false);
@@ -305,7 +308,7 @@ public class ReverseProxyFunctionalTest extends Assert {
   }
 
   @Test
-  @Ignore("todo: WBK - land of the misfit toys")
+  //@Ignore("todo: WBK - land of the misfit toys")
   public void testHttp2toHttp2ServerPostMany() throws Exception {
     setupClient(true);
     setupFrontBack(true, true);
@@ -332,10 +335,13 @@ public class ReverseProxyFunctionalTest extends Assert {
                         } else {
                           request.get();
                         }
+                        log.debug("making request num:" + (index+1));
                         Response response = client.newCall(request.build()).execute();
                         responses.put(index, response);
                         waiter.resume();
+                        log.debug("recorded response for request num:" + (index+1) + " stream id ::: " + response.toString());
                       } catch (Exception error) {
+                        log.error("error request num:" + (index+1), error);
                         waiter.fail(error);
                       }
                     }));
@@ -348,11 +354,11 @@ public class ReverseProxyFunctionalTest extends Assert {
       timeout = e;
     }
     responses.forEach(
-        (key, response) -> {
-          String index = response.header("x_index");
-          assertNotNull(index);
-          assertEquals(key.toString(), index);
-        });
+        (key, response) ->
+            assertEquals(
+                "expected the request:response mapping to be correct",
+                key.toString(),
+                response.header("x_index")));
     assertEquals("expected a response for all of the requests", NUM_REQUESTS, responses.size());
     executorService.shutdown();
     executorService.awaitTermination(seconds, TimeUnit.SECONDS);

@@ -60,7 +60,7 @@ public class ProxyHandler implements PipelineRequestHandler {
   public Request buildRequest(Request request, String proxyHost, String path) {
 
     Request result;
-
+    log.warn("ProxyHandler buildRequest {}", request.getClass().getName());
     if (request instanceof FullRequest) {
       result =
           DefaultFullRequest.builder()
@@ -139,6 +139,8 @@ public class ProxyHandler implements PipelineRequestHandler {
 
     if (!request.startOfMessage()) {
       log.debug("not start of stream");
+      log.warn("ProxyHandler not start: {}", request);
+      // todo WBK problem is here (stream id + ?)
       client.write(request);
       return;
     }

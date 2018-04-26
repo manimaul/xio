@@ -15,7 +15,9 @@ import io.netty.handler.codec.http2.DefaultHttp2DataFrame;
 import io.netty.handler.codec.http2.Http2DataFrame;
 import io.netty.handler.codec.http2.Http2Headers;
 import io.netty.util.concurrent.PromiseCombiner;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @UnstableApi
 public class Http2ServerCodec extends ChannelDuplexHandler {
 
@@ -63,8 +65,9 @@ public class Http2ServerCodec extends ChannelDuplexHandler {
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
     if (msg instanceof Http2Request) {
-      Http2Request request = (Http2Request) msg;
-      ctx.fireChannelRead(wrapRequest(ctx, request));
+      Request request = wrapRequest(ctx, (Http2Request) msg);
+      log.warn("Http2ServerCodec read: {}", request);
+      ctx.fireChannelRead(request);
     } else {
       ctx.fireChannelRead(msg);
     }
@@ -104,12 +107,12 @@ public class Http2ServerCodec extends ChannelDuplexHandler {
     Http2MessageSession messageSession = lazyCreateSession(ctx);
     messageSession.onOutboundResponseData(data);
 
-    boolean dataEos = data.endOfMessage() && data.trailingHeaders().size() == 0;
+    Headers trailingHeaders = data.trailingHeaders();
+    boolean dataEos = data.endOfMessage() && trailingHeaders != null && trailingHeaders.size() == 0;
     Http2Response response =
         Http2Response.build(
             data.streamId(), new DefaultHttp2DataFrame(data.content(), dataEos), dataEos);
 
-    Headers trailingHeaders = data.trailingHeaders();
     if (trailingHeaders != null && trailingHeaders.size() != 0) {
       Http2Headers headers = trailingHeaders.http2Headers();
       Http2Response last = Http2Response.build(data.streamId(), headers, true);
