@@ -3,6 +3,7 @@ import sys
 import functools
 import os
 import os.path as path
+import shlex
 from threading import Thread
 from queue import Queue, Empty
 
@@ -90,7 +91,7 @@ class Server:
     if self.process is None:
       print("server {} run cmd: {}".format(self.name, self.cmd))
       env = {**os.environ, 'JAVA_OPTS': '-DDEBUG=1'}
-      self.process = subprocess.Popen("exec " + self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, env=env)
+      self.process = subprocess.Popen(shlex.split(self.cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
       self.nb_err = StdOutReader(self.process.stderr, verbose=self._verbose)
       self.nb_out = StdOutReader(self.process.stdout, verbose=self._verbose)
       while True:
@@ -104,6 +105,7 @@ class Server:
       self.process.kill()
       self.nb_err.stop()
       self.nb_out.stop()
+      self.process.wait()
 
       outs, errs = self.process.communicate()
       if outs or errs:

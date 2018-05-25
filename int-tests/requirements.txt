@@ -1,2 +1,6 @@
+# Note for MacOS and pycurl:
+# `brew install openssl`
+# `pip install --install-option="--with-openssl" --install-option="--openssl-dir=/usr/local/opt/openssl" pycurl==7.43.0.1`
+
 pycurl==7.43.0.1
 requests==2.18.4
