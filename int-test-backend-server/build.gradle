@@ -16,7 +16,7 @@ apply plugin: 'application'
 description = 'int-test-backend-server'
 group = project_group
 
-mainClassName = 'com.xjeffrose.xio.backend.server.Main'
+mainClassName = 'com.test.integration.backend.Main'
 
 def ktor_version = '0.9.2'
 

@@ -1,4 +1,4 @@
-package com.xjeffrose.xio.backend.server
+package com.test.integration.backend
 
 import com.typesafe.config.ConfigFactory
 import com.xjeffrose.xio.SSL.TlsConfig
