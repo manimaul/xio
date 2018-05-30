@@ -1,6 +1,6 @@
 # Local Tests
 
-The following tests are simple integration pyunit tests which run the services under test in a process using Gradle via python. These "Local Tests" are also a part of the CircleCI pipeline.
+The following "Local Tests" are pyunit integration tests which run their respective services under test in their own process using Gradle via python. "Local Tests" are a part of the CircleCI pipeline.
 
 Note: [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/) is your friend
 
@@ -14,7 +14,7 @@ python test_server.py
 
 # Containerized Tests
 
-The following tests are integration tests meant to be run in Docker container(s). 
+The following "Containerized Tests" are integration tests meant to be run in Docker container(s). "Containerized Tests" are a part of the CI/CD pipeline run periodically on controlled hardware for benchmarking purposes.  
 
 * proxy_load_tests.py 
 
